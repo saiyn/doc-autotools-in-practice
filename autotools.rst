@@ -32,6 +32,7 @@ xwininfo 的源代码树
 下边看一下 xwininfo 的源代码。
 
 编译完成之后的目录树::
+
     build/xwininfo-1.1.1/xwininfo-1.1.1/
     |-- COPYING
     |-- ChangeLog
@@ -85,6 +86,7 @@ xwininfo 的源代码树
 
 再看从 tar 包 (layers/wrll-userspace/graphics/packages/xwininfo-1.1.1.tar.bz2)
 解压出来的目录树::
+
     .
     |-- COPYING
     |-- ChangeLog
@@ -116,6 +118,7 @@ xwininfo 的源代码树
 只有 24 个文件。
 
 再看 `git 仓库`_ 中的目录树 (也就是开发者进行开发的目录树)::
+
     .
     |-- autogen.sh
     |-- clientwin.c
