@@ -3,7 +3,7 @@
 ====================
 
 简介
-~~~
+~~~~
 
 autotools 的主要目的是方便用户，简化软件编译的步骤。用 autotools 搭建的软件都可
 以这样来编译::
@@ -16,15 +16,14 @@ autotools 的主要目的是方便用户，简化软件编译的步骤。用 aut
 其他 UNIX 系统) 上编译软件的标准命令，其他编译系统 (比如 cmake, scons, python
 的 setup.py) 尽管有各自的好处，但反而不容易被用户接受。
 
-下面以 xwininfo 为例，简单分析一下 autotools 的使用。xwininfo 是一个很简单的软
-件包，只为用户提供两个文件::
+下面以 xwininfo 为例，分析一下 autotools 的使用。xwininfo 是一个很简单的软件，
+只为用户提供两个文件::
 
     $ conary q xwininfo --ls
     /usr/share/man/man1/xwininfo.1.gz
     /usr/bin/xwininfo
 
-在 /usr/bin 目录下安装了一个可执行程序，然后在 /usr/share 目录下安装了一个 man
-手册。
+在 /usr/bin 目录下安装了一个可执行程序，然后在 /usr/share 目录下安装了一个手册。
 
 xwininfo 的源代码树
 ~~~~~~~~~~~~~~~~~~~
