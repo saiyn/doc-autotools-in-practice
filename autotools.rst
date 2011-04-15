@@ -156,21 +156,21 @@ xwininfo 的编译系统
 代码和文档可算作一个项目真正“有意义”的东西, 除此之外的其他文件只有三个。它们也
 就是 xwininfo 的编译系统。
 
-什么是 autotools?
+什么是 Autotools?
 ~~~~~~~~~~~~~~~~~
 
-autotools 指的是:
+Autotools 指的是:
 
-- autoconf - 生成 configure 文件 (configure.ac -> configure)
-- automake - 生成 Makefile 模板 (Makefile.am -> Makefile.in) (XXX)
-- libtool - 生成共享库
+- Autoconf - 生成 configure 文件 (configure.ac -> configure)
+- Automake - 生成 Makefile 模板 (Makefile.am -> Makefile.in) (XXX)
+- Libtool - 生成共享库
 
 .. image:: images/autoconf.svg
 
 上图解释了一个软件从 git 仓库到安装到用户系统上的过程。过程的参与者有两个, 开发
 者和用户。
 
-autotools (autoconf 和 automake) 是给开发者用的, 用户在编译软件时, 不需要安装
+Autotools (autoconf 和 automake) 是给开发者用的, 用户在编译软件时, 不需要安装
 autotools。用户要执行的命令是：
 
 configure
@@ -178,7 +178,7 @@ configure
 make
     在用户系统上安装。Makefile 是由 configure 从 Makefile.in 生成的。
 
-autoconf
+Autoconf
 ~~~~~~~~
 
 Autoconf 是 autotools 套件中被最早开发出来的 (1991 年)。它解决的问题包括：
@@ -265,14 +265,14 @@ autoheader 能够根据 configure.ac 生成一个头文件的模板, 一般叫�
 
 autoscan
 --------
-autoscan 能够扫描项目源代码，自动生成 configure.ac。
+autoscan 能够扫描项目源代码, 自动生成 configure.ac。
 
-automake
+Automake
 ~~~~~~~~
 
-在 automake 出现之前，人们必须手写 Makefile。但是项目稍微有点规模后，Makefile
-就很容易变得又长又臭, 很难维护。但是有这样一个事实，大多数项目在结构上都是类似
-的。无论项目的代码文件里有什么，都是在一个递归的代码树里面，并且一般都要支持这
+在 automake 出现之前, 人们必须手写 Makefile。但是项目稍微有点规模后, Makefile
+就很容易变得又长又臭, 很难维护。但是有这样一个事实, 大多数项目在结构上都是类似
+的。无论项目的代码文件里有什么, 都是在一个递归的代码树里面, 并且一般都要支持这
 些常见的 make 操作::
 
     $ make
@@ -281,7 +281,7 @@ automake
     $ make dist
     ....
 
-Automake 能够简化 Makefile 的维护，自动生成可移植的 Makefile。
+Automake 能够简化 Makefile 的维护, 自动生成可移植的 Makefile。
 
 Automake 提供两个可执行程序:
 
@@ -291,5 +291,37 @@ Automake 提供两个可执行程序:
 automake
 --------
 
+automake 能够从抽象的高层描述 (Makefile.am) 生成具体的 makefile 模板 (Makefile.in)::
+
+    $ wc Makefile*
+       60   266  1901 Makefile.am
+      763  3087 25552 Makefile.in
+      763  3207 28080 Makefile
+
+可以看到 Makefile.am 很短。而自动生成的 Makefile.in 和 Makefile 行数相同, 但是
+由于有宏扩展, Makefile 更大。
+
+从语法上讲, Makefile.am 也是标准的 makefile。
+
 aclocal
 -------
+
+automake 实际是对 autoconf 的一个扩展, 也就是提供一系列 m4 宏定义给用户使用。用
+户可以在 configure.ac 里调用这些宏。但是 autoconf 最初的设计并没有考虑到这么大
+程度的扩展。
+
+autoconf 最初提供的扩展机制是通过一个叫 aclocal.m4 的文件。用户可以在里边添加自
+定义的宏, autoconf 在处理 configure.ac 的时候会自动读取这个文件里的宏定义。
+
+显然, 如果要使用 automake, 用户必须创建一个 aclocal.m4, 然后通过 m4_include 把
+automake 的宏都包含进来。这样 autoconf 就能识别出 configure.ac 里边的 automake
+宏了。
+
+这个办法不算友好, 因为用户必须要接触到 M4 的一些概念, 而 autoconf 本身就是要把
+M4 封装起来。
+
+所以开发者设计了 aclocal 来解决这个问题的。它能够自动生成 aclocal.m4 文件, 供
+autoconf 使用。
+
+Libtool
+~~~~~~~
