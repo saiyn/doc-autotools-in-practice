@@ -2,6 +2,8 @@
  Autotools 实例分析
 ====================
 
+.. contents:: 目录
+
 简介
 ~~~~
 
@@ -153,8 +155,8 @@ xwininfo 的编译系统
 编译系统
     autogen.sh  configure.ac  Makefile.am
 
-代码和文档可算作一个项目真正“有意义”的东西, 除此之外的其他文件只有三个。它们也
-就是 xwininfo 的编译系统。
+代码和文档可算作一个项目真正“有意义”的东西, 除此之外的其他文件只有三个,
+autogen.sh, configure.ac 和 Makefile.am。它们也就是 xwininfo 的编译系统。
 
 什么是 Autotools?
 ~~~~~~~~~~~~~~~~~
@@ -165,7 +167,9 @@ Autotools 指的是:
 - Automake - 生成 Makefile 模板 (Makefile.am -> Makefile.in) (XXX)
 - Libtool - 生成共享库
 
-.. image:: images/autoconf.svg
+.. figure:: images/autoconf.svg
+
+    autoconf 和 automake
 
 上图解释了一个软件从 git 仓库到安装到用户系统上的过程。过程的参与者有两个, 开发
 者和用户。
@@ -179,13 +183,16 @@ make
     在用户系统上安装。Makefile 是由 configure 从 Makefile.in 生成的。
 
 Autoconf
-~~~~~~~~
+========
 
 Autoconf 是 autotools 套件中被最早开发出来的 (1991 年)。它解决的问题包括：
 
 - 找到系统上的库和头文件
 - 软件编好后安到合适的路径
 - 正确选择软件的组件和功能点
+
+当然, 这些都是 configure 脚本的功能。而 autoconf 的作用是生成这个 configure 脚
+本。
 
 Autoconf 提供的可执行程序包括：
 
@@ -194,6 +201,10 @@ Autoconf 提供的可执行程序包括：
 #. autoreconf
 #. autoheader
 #. autoscan
+
+.. figure:: images/autoconf_ahdr_dataflow.png
+
+    autoconf 和 autoheader 的数据流图
 
 autoconf
 --------
@@ -268,7 +279,7 @@ autoscan
 autoscan 能够扫描项目源代码, 自动生成 configure.ac。
 
 Automake
-~~~~~~~~
+========
 
 在 automake 出现之前, 人们必须手写 Makefile。但是项目稍微有点规模后, Makefile
 就很容易变得又长又臭, 很难维护。但是有这样一个事实, 大多数项目在结构上都是类似
@@ -317,11 +328,88 @@ autoconf 最初提供的扩展机制是通过一个叫 aclocal.m4 的文件。�
 automake 的宏都包含进来。这样 autoconf 就能识别出 configure.ac 里边的 automake
 宏了。
 
-这个办法不算友好, 因为用户必须要接触到 M4 的一些概念, 而 autoconf 本身就是要把
-M4 封装起来。
+这个办法不算友好, 因为它把 M4 的一些概念暴露出来了, 而 autoconf 本身是要把 M4
+封装起来的, 不想让用户直接接触 M4。
 
-所以开发者设计了 aclocal 来解决这个问题的。它能够自动生成 aclocal.m4 文件, 供
+所以开发者设计了 aclocal 来解决这个问题。它能够自动生成 aclocal.m4 文件, 供
 autoconf 使用。
 
+.. figure:: images/aclocal_dataflow.png
+
+    aclocal 的数据流图
+
 Libtool
-~~~~~~~
+=======
+
+Libtool 的目的是简化共享库的开发。尽管各种 UNIX 系统是基本相似的, 但是它们在共
+享库的处理上有着各种各样的差别。libtool 可以帮开发者避开这些陷阱。比如:
+
+- 库的命名。libname.so, libname.a, libname.sl。有的系统什么不支持共享库。
+- 库的动态加载。有的系统提供 libdl.so (dlopen), 有的系统提供其他的机制, 有的系
+  统不支持动态加载。
+
+Libtool 包提供了这些程序以及头文件和库:
+
+- libtool 一个 shell 脚本
+- libtoolize 能够为工程生成特定的 libtool 脚本。这个脚本会在用户系统上, 由 make
+  执行。
+- libdl 一个通用的共享库加载接口。
+- ltdl.h 头文件
+
+.. figure:: images/automake_libtool_dataflow.png
+
+    automake 和 libtool 数据流图
+
+Automake 和 Libtool 都是对 autoconf 的扩展, 用几个简单的宏调用就能够使能
+automake 和 libtool。
+
+软件的编译过程
+~~~~~~~~~~~~~~
+
+以上的内容都是从开发者的角度看的。下面分析一下在用户系统上发生的事情。
+
+执行 ./configure
+================
+
+用户拿到了一个 tarball。里边有这些东西:
+
+- 源代码 (.c, .h)
+- 一个 configure 脚本
+- 一些模板文件, 包括 Makefile.in, config.h.in 等等。其他例子有 glib.pc.in,
+  trashapplet-empty-progress.ui.in。
+
+用户需要进行的操作很简单, 就是一条命令: ::
+
+    ./configure --prefix=/usr --enable-foo=yes --enable-bar=no...
+
+.. figure:: images/configure_dataflow.png
+
+    configure 过程数据流图
+
+1. configure 脚本会收集系统信息, 以及用户给的命令行选项。
+#. configure 最终生成 config.status 脚本, 并且执行这个脚本。
+#. config.status 把模板文件都处理为最终的文件。
+#. 日志记录到 config.log 文件里。
+
+执行 make
+=========
+
+Makefile 已经由 configure 生成, 用户只需要执行一个简单的 make 命令。
+
+.. figure:: images/make_dataflow.png
+
+    make 过程数据流图
+
+编写 configure.ac
+~~~~~~~~~~~~~~~~~
+
+最短的 configure.ac::
+
+    AC_INIT([Jupiter], [1.0])
+    AC_OUTPUT
+
+自动生成 Makefile
+~~~~~~~~~~~~~~~~~
+
+用 Libtool 构建共享库
+~~~~~~~~~~~~~~~~~~~~~
