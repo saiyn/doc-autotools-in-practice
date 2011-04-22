@@ -403,13 +403,252 @@ Makefile 已经由 configure 生成, 用户只需要执行一个简单的 make �
 编写 configure.ac
 ~~~~~~~~~~~~~~~~~
 
-最短的 configure.ac::
+最短的 configure.ac
+===================
+
+::
 
     AC_INIT([Jupiter], [1.0])
     AC_OUTPUT
 
+编写 configure.ac 的语言是 M4 。M4 是一种宏处理语言 (macro processor), 本质上就
+是对宏定义的文本递归扩展。上例中是两个 M4 宏调用, 被 m4 扩展后, 就生成了最终的
+configure 脚本。
+
+M4 宏与 C 语言的预处理宏有很多相似之处。这很容易理解, 因为它们都是进行简单的文
+本替换, 而且作者都是 Brian Kernighan 和 Dennis Ritchie。
+
+这两个宏是由 autoconf 提供的 (/usr/share/autoconf/autoconf/general.m4)。
+
+参数可以用括号 () 传递。没有参数可以不写括号。
+
+在使用 autoconf 时, 必要的时候要用方括号 [] 把参数括起来。
+
+在一个 configure.ac 脚本中, 至少要调用两个宏:
+
+AC_INIT(package, version, [bug-report], [tarname], [url])
+    初始化 autoconf 系统。
+
+AC_OUTPUT
+    生成并调用 config.status。每个 configure.ac 都应该在最后调用此宏。在
+    AC_OUTPUT 之后执行的动作不会对 configure 过程产生作用。有的项目会在最后写一
+    条 echo 语句, 打印一些 configure 信息。
+
+生成 configure
+~~~~~~~~~~~~~~
+
+调用 autotools 工具链的推荐办法是 autoreconf。有的工程为了方便, 会有一个简单的
+autogen.sh 脚本::
+
+    #! /bin/sh
+
+    srcdir=`dirname $0`
+    test -z "$srcdir" && srcdir=.
+
+    ORIGDIR=`pwd`
+    cd $srcdir
+
+    autoreconf -v --install || exit 1
+    cd $ORIGDIR || exit $?
+
+    $srcdir/configure --enable-maintainer-mode "$@"
+
+可以看到 xwininfo 的 autogen.sh 只是对 autoreconf 的封装, 最后再直接掉用刚刚生
+成的 configure。
+
+调用 config.status
+~~~~~~~~~~~~~~~~~~
+
+前边提到过真正的把 .in 模板文件转换为普通文件的是 config.status。实际上用户也可
+以直接调用 ./config.status, 就能够重新转换模板文件。这也是 autoconf 的设计目的
+之一。但是 config.status 的更大作用是给 make 使用: ::
+
+    Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
+            @case '$?' in \
+              *config.status*) \
+                $(SHELL) ./config.status;; \
+              *) \
+                cd $(top_builddir) && $(SHELL) ./config.status $@ $(am__depfiles_maybe);; \
+            esac;
+
+当 Makefile.in 模板文件被改变后, 可以自动更新 Makefile。
+
+xwininfo 的 configure.ac
+========================
+
+下面逐行分析 xwininfo 的 configure.ac。
+
+::
+
+    dnl  Copyright 2005 Red Hat, Inc.
+    dnl
+    dnl  Permission to use, copy, modify, distribute, and sell this software and its
+    dnl  documentation for any purpose is hereby granted without fee, provided that
+    dnl  the above copyright notice appear in all copies and that both that
+    dnl  copyright notice and this permission notice appear in supporting
+
+dnl 的意思是 discard to next line。相当于注释, 但是实际上这些行都被丢弃了, 不会
+出现在最终的扩展结果(也就是 configure) 中。
+
+::
+
+    AC_PREREQ([2.60])
+    AC_INIT([xwininfo], [1.1.1],
+            [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg], [xwininfo])
+
+AC_PREREQ 指定可适用的 autoconf 最低版本。AC_INIT 初始化 Autoconf。
+
+::
+
+    AM_INIT_AUTOMAKE([foreign dist-bzip2])
+    AM_MAINTAINER_MODE
+
+初始化 Automake 。详细内容会在下一小节讲到。
+
+::
+
+    # Require X.Org macros 1.8 or later for MAN_SUBSTS set by XORG_MANPAGE_SECTIONS
+    m4_ifndef([XORG_MACROS_VERSION],
+              [m4_fatal([must install xorg-macros 1.8 or later before running autoconf/autogen])])
+    XORG_MACROS_VERSION(1.8)
+
+检查外部依赖。
+
+m4_ifndef 是 M4 的一个内置宏, 作用跟 CPP 的 #ifndef 类似。如果
+XORG_MACROS_VERSION 不存在, 就调用 m4_fatal 打印错误信息后退出。
+
+XORG_MACROS_VERSION 由 util-macros 提供, 检查 util-macros 的版本是否大于 1.8。
+
+::
+
+    AM_CONFIG_HEADER(config.h)
+
+XXX
+
+::
+
+    AC_USE_SYSTEM_EXTENSIONS
+
+    XORG_DEFAULT_OPTIONS
+
+    AC_CHECK_FUNCS([strlcat])
+
+    AC_FUNC_STRNLEN
+    if test "x$ac_cv_func_strnlen_working" = xyes; then
+      AC_DEFINE(HAVE_STRNLEN, 1, [Define to 1 if you have a working strnlen function.])
+    fi
+
+    # Check for iconv in libc, then libiconv
+    AC_SEARCH_LIBS([iconv], [iconv], [AC_DEFINE([HAVE_ICONV], 1,
+            [Define to 1 if you have the iconv() function])])
+
+XXX
+
+::
+
+    # Allow using xcb-icccm, but don't make it the default while the API is
+    # still being changed.
+    AC_MSG_CHECKING([whether to use xcb-icccm library])
+    AC_ARG_WITH([xcb-icccm],
+                [AS_HELP_STRING([--with-xcb-icccm],
+                                [use xcb-icccm (default: no)])],
+                [], [with_xcb_icccm=no])
+    AC_MSG_RESULT([$with_xcb_icccm])
+    if test "x$with_xcb_icccm" != xno ; then
+            AC_DEFINE([USE_XCB_ICCCM], 1,
+                      [Define to 1 to call xcb-icccm library functions instead of local replacements])
+            xcb_icccm_pc="xcb-icccm"
+    fi
+
+添加一个自定义 configure 选项 --with-xcb-icccm=[yes|no]。如果使能了此特性, 就
+把 USE_XCB_ICCCM 置为 1。这个定义会出现在 config.h.in 和 config.h 中: ::
+
+    ---- config.h.in ----
+
+    /* Define to 1 to call xcb-icccm library functions instead of local
+       replacements */
+    #undef USE_XCB_ICCCM
+
+    ---- config.h ----
+
+    /* Define to 1 to call xcb-icccm library functions instead of local
+       replacements */
+    /* #undef USE_XCB_ICCCM */
+
+::
+
+    # Checks for pkg-config packages
+    PKG_CHECK_MODULES(XWININFO, [xcb >= 1.6] xcb-shape ${xcb_icccm_pc})
+
+    # Even when using xcb, xproto is still required for Xfuncproto.h
+    # and libX11 headers for cursorfont.h
+    PKG_CHECK_MODULES(XLIB, x11 [xproto >= 7.0.17])
+    XWININFO_CFLAGS="${XWININFO_CFLAGS} ${XLIB_CFLAGS}"
+
+用 pkg-config 检查依赖。
+
+::
+
+    AC_OUTPUT([Makefile])
+
+调用 AC_OUTPUT。
+
 自动生成 Makefile
 ~~~~~~~~~~~~~~~~~
+
+前面提到过 automake 只是对 autoconf 的扩展, 所以要使能 automake, 只需要在
+configure.ac 里添加一条 AM_INIT_AUTOMAKE: ::
+
+    AM_INIT_AUTOMAKE([foreign dist-bzip2])
+
+xwininfo 的 Makefile.am
+=======================
+
+::
+
+    bin_PROGRAMS = xwininfo
+
+    AM_CFLAGS = $(CWARNFLAGS) $(XWININFO_CFLAGS)
+    xwininfo_LDADD = $(XWININFO_LIBS) $(LIBOBJS)
+
+    xwininfo_SOURCES =	\
+            clientwin.c \
+            clientwin.h \
+            dsimple.c \
+            dsimple.h \
+            xwininfo.c
+
+    -------------------------
+
+    appman_PRE = \
+            xwininfo.man
+
+
+    appmandir = $(APP_MAN_DIR)
+
+    appman_DATA = $(appman_PRE:man=@APP_MAN_SUFFIX@)
+
+    -------------------------
+
+    EXTRA_DIST = $(appman_PRE) autogen.sh strnlen.h
+    MAINTAINERCLEANFILES = ChangeLog INSTALL
+    CLEANFILES = $(appman_DATA)
+
+    .PHONY: ChangeLog INSTALL
+
+    INSTALL:
+            $(INSTALL_CMD)
+
+    ChangeLog:
+            $(CHANGELOG_CMD)
+
+    dist-hook: ChangeLog INSTALL
+
+    SUFFIXES = .$(APP_MAN_SUFFIX) .man
+
+    # String replacements in MAN_SUBSTS now come from xorg-macros.m4 via configure
+    .man.$(APP_MAN_SUFFIX):
+            $(AM_V_GEN)$(SED) $(MAN_SUBSTS) < $< > $@
 
 用 Libtool 构建共享库
 ~~~~~~~~~~~~~~~~~~~~~
