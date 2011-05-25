@@ -7,34 +7,101 @@
 简介
 ~~~~
 
-autotools 的主要目的是方便用户, 简化软件编译的步骤。用 autotools 搭建的软件都可
-以这样来编译::
+autotools 的主要目的是方便用户, 简化软件编译的步骤。用 autotools 搭建的软件都有
+这样的“标准”编译步骤::
 
     $ ./configure
     $ make
     $ sudo make install
 
-用户不需要去自己检查系统配置, 软件的依赖, 安装路径。这三步已经成为 Linux (以及
-其他 UNIX 系统) 上编译软件的标准命令, 其他编译系统 (比如 cmake, scons, python
-的 setup.py) 尽管有各自的好处, 但反而不容易被用户接受。
+用户不需要自己检查系统配置, 软件的依赖或者安装路径，autotools 能保证系统满足软
+件的运行条件。
+
+这三步已经成为 Linux (以及其他 UNIX 系统) 上编译软件的标准命令, 其他编译系统 (
+比如 cmake, scons, python 的 setup.py) 尽管有各自的好处, 但反而不容易被用户接受
+。
 
 下面以 xwininfo 为例, 分析一下 autotools 的使用。xwininfo 是一个很简单的软件,
 只为用户提供两个文件::
 
-    $ conary q xwininfo --ls
     /usr/share/man/man1/xwininfo.1.gz
     /usr/bin/xwininfo
 
 在 /usr/bin 目录下安装了一个可执行程序, 然后在 /usr/share 目录下安装了一个手册。
 
-xwininfo 的源代码树
+xwininfo 的编译系统
 ~~~~~~~~~~~~~~~~~~~
 
-下边看一下 xwininfo 的源代码。
+首先看一下 xwininfo 的源代码。这是项目 `git 仓库`_ 中的目录树::
 
-编译完成之后的目录树::
+    |-- COPYING
+    |-- Makefile.am
+    |-- README
+    |-- autogen.sh
+    |-- clientwin.c
+    |-- clientwin.h
+    |-- configure.ac
+    |-- dsimple.c
+    |-- dsimple.h
+    |-- strnlen.c
+    |-- strnlen.h
+    |-- xwininfo.c
+    `-- xwininfo.man
 
-    build/xwininfo-1.1.1/xwininfo-1.1.1/
+    0 directories, 13 files
+
+.. _git 仓库: http://cgit.freedesktop.org/xorg/app/xwininfo/
+
+从开发者的角度看，xwininfo 只有 13 个文件。可以分成三类。
+
+代码
+    clientwin.c  clientwin.h  dsimple.c  dsimple.h  strnlen.c  strnlen.h
+    xwininfo.c
+文档
+    COPYING  README  xwininfo.man
+编译系统
+    autogen.sh  configure.ac  Makefile.am
+
+除去代码和文档，有 autogen.sh, configure.ac 和 Makefile.am。它们组成了 xwininfo
+的编译系统。
+
+跟 autotools 相关的就是这三个文件, 但软件的用户不会直接接触这些文件。用户手里拿
+到的，是一个压缩包。看压缩包 (xwininfo-1.1.1.tar.bz2) 的内容::
+
+    |-- COPYING
+    |-- Makefile.am
+    |-- README
+    |-- autogen.sh
+    |-- clientwin.c
+    |-- clientwin.h
+    |-- configure.ac
+    |-- dsimple.c
+    |-- dsimple.h
+    |-- strnlen.c
+    |-- strnlen.h
+    |-- xwininfo.c
+    `-- xwininfo.man
+
+    |-- ChangeLog
+    |-- INSTALL
+    |-- Makefile.in
+    |-- aclocal.m4
+    |-- config.guess
+    |-- config.h.in
+    |-- config.sub
+    |-- configure
+    |-- depcomp
+    |-- install-sh
+    |-- missing
+
+    0 directories, 24 files
+
+tar 包里多了十一个文件。这些文件才是给用户使用的, 比如 configure 脚本。
+autotools 要做的所有工作就是生成这些文件; 用户不需要直接跟 autotools 打交道。
+
+顺便看一下编译完成之后的目录树::
+
+    xwininfo-1.1.1/
     |-- COPYING
     |-- ChangeLog
     |-- INSTALL
@@ -83,113 +150,48 @@ xwininfo 的源代码树
 
     2 directories, 43 files
 
-一共有 2 个目录 (其中 m4 是一个空目录), 43 个文件。
-
-再看从 tar 包 (layers/wrll-userspace/graphics/packages/xwininfo-1.1.1.tar.bz2)
-解压出来的目录树::
-
-    .
-    |-- COPYING
-    |-- ChangeLog
-    |-- INSTALL
-    |-- Makefile.am
-    |-- Makefile.in
-    |-- README
-    |-- aclocal.m4
-    |-- autogen.sh
-    |-- clientwin.c
-    |-- clientwin.h
-    |-- config.guess
-    |-- config.h.in
-    |-- config.sub
-    |-- configure
-    |-- configure.ac
-    |-- depcomp
-    |-- dsimple.c
-    |-- dsimple.h
-    |-- install-sh
-    |-- missing
-    |-- strnlen.c
-    |-- strnlen.h
-    |-- xwininfo.c
-    `-- xwininfo.man
-
-    0 directories, 24 files
-
-只有 24 个文件。
-
-再看 `git 仓库`_ 中的目录树 (也就是开发者进行开发的目录树)::
-
-    .
-    |-- autogen.sh
-    |-- clientwin.c
-    |-- clientwin.h
-    |-- configure.ac
-    |-- COPYING
-    |-- dsimple.c
-    |-- dsimple.h
-    |-- Makefile.am
-    |-- README
-    |-- strnlen.c
-    |-- strnlen.h
-    |-- xwininfo.c
-    `-- xwininfo.man
-
-    0 directories, 13 files
-
-.. _git 仓库: http://cgit.freedesktop.org/xorg/app/xwininfo/
-
-只有 13 个文件。显然, tar 包里包含一些生成的文件, 而在用户执行 ./configure 和
-make 的时候, 又生成了一些文件。
-
-xwininfo 的编译系统
-~~~~~~~~~~~~~~~~~~~
-
-我们可以把 git 仓库中的 13 个文件分一下类。
-
-代码文件
-    clientwin.c  clientwin.h  dsimple.c  dsimple.h  strnlen.c  strnlen.h
-    xwininfo.c
-文档
-    COPYING  README  xwininfo.man
-编译系统
-    autogen.sh  configure.ac  Makefile.am
-
-代码和文档可算作一个项目真正“有意义”的东西, 除此之外的其他文件只有三个,
-autogen.sh, configure.ac 和 Makefile.am。它们也就是 xwininfo 的编译系统。
+其中除了编译过程中生成的临时文件 (比如 .o), 还有 configure 脚本产生的日志和临时
+文件。
 
 什么是 Autotools?
 ~~~~~~~~~~~~~~~~~
 
-Autotools 指的是:
+自由软件基金会 (Free Software Foundation) 为他们的 GNU 系统开发了 GNU build
+system, 也被称作 Autotools。这是一套编程工具的集合, 目的是帮助提高源代码包在类
+UNIX 系统上的移植性。也就是说, 它关注的是源代码的移植性, 而不是二进制程序的移植
+性。
+
+GNU build system (以下称作 autotools) 提供的工具包括:
 
 - Autoconf - 生成 configure 文件 (configure.ac -> configure)
-- Automake - 生成 Makefile 模板 (Makefile.am -> Makefile.in) (XXX)
+- Automake - 生成 Makefile 模板 (Makefile.am -> Makefile.in)
 - Libtool - 生成共享库
 
-.. figure:: images/autoconf.svg
+.. figure:: images/autoconf.png
 
     autoconf 和 automake
 
-上图解释了一个软件从 git 仓库到安装到用户系统上的过程。过程的参与者有两个, 开发
-者和用户。
+上图解释了一个软件从 git 仓库到安装到用户系统上的过程。整个过程分成两个部分, 分
+别由开发者和用户主导。
 
-Autotools (autoconf 和 automake) 是给开发者用的, 用户在编译软件时, 不需要安装
-autotools。用户要执行的命令是：
+开发者使用 autotools (autoconf 和 automake) 生成必要的文件, 然后讲软件源码包分
+发给用户。用户拿到源码后, 通过几个标准的命令来编译这个软件:
 
 configure
     由 autoconf 生成
 make
     在用户系统上安装。Makefile 是由 configure 从 Makefile.in 生成的。
 
+下面具体讲究 autotools 的各个组件。
+
 Autoconf
 ========
 
-Autoconf 是 autotools 套件中被最早开发出来的 (1991 年)。它解决的问题包括：
+Autoconf 是 autotools 套件中最早出现的 (1991 年)。它解决的问题包括：
 
-- 找到系统上的库和头文件
-- 软件编好后安到合适的路径
-- 正确选择软件的组件和功能点
+- 检查系统上的库和头文件
+- 确定软件的最终安装路径
+- 正确选择软件的组件和功能
 
 当然, 这些都是 configure 脚本的功能。而 autoconf 的作用是生成这个 configure 脚
 本。
@@ -206,11 +208,14 @@ Autoconf 提供的可执行程序包括：
 
     autoconf 和 autoheader 的数据流图
 
+简单地说, 开发者编写好 configure.ac 后, 调用 autoconf 以及其他的程序, 生成
+configure。当然, 具体的操作更复杂一点, 由多个工具相互协作完成。
+
 autoconf
 --------
 
 autoconf 是一个简单的 .sh 脚本。主要功能是检查当前 shell 能否支持 M4 的处理。然
-后在对命令行参数进行简单解析后, 转给 autom4te::
+后在对命令行参数进行简单解析后, 把控制权转给 autom4te::
 
     $ tail -n6 /usr/bin/autoconf
     # Run autom4te with expansion.
@@ -220,29 +225,30 @@ autoconf 是一个简单的 .sh 脚本。主要功能是检查当前 shell 能�
     $verbose && $as_echo "$as_me: running $AUTOM4TE $*" >&2
     exec "$AUTOM4TE" "$@"
 
+也就是说, configure 实际上是由 autom4te 完成的。autom4te 读做 “automate”。
+
 autom4te
 --------
 
-autom4te 是对 m4 的一个封装, 它能够利用缓存来提高速度。我们经常能看到这样一个缓
-存目录::
+而事实上, autom4te 又是对 m4 的一个封装。autom4te 的作用是提供一个缓存, 加快 m4
+的处理速度。我们经常能看到这样一个缓存目录::
 
     $ ls autom4te.cache/
     output.0  output.1  output.2  requests  traces.0  traces.1  traces.2
 
-从 configure.ac 到 configure 的转换, 本质上是由 m4 完成的。这个转换过程无非就是
-m4 宏定义的递归扩展。
+所以从 configure.ac 到 configure 的转换, 本质上是由 m4 完成的。
 
 autoreconf
 ----------
 
-autoreconf 可以看作是所有 autotools 的封装, 它能够根据 configure.ac 正确调
-用其他的工具, 最终生成 configure 脚本。
+autoreconf 可以看作是对所有 autotools 的封装, 它能够自动选择调用合适的工具, 最
+终生成 configure 脚本以及其他的文件。
 
 autoheader
 ----------
 
-autoheader 能够根据 configure.ac 生成一个头文件的模板, 一般叫做 config.h.in 。
-里边一般包换对项目组件和各种特性的开关(也就是宏定义)::
+autoheader 能够生成一个“头文件模板”, 一般叫做 config.h.in 。里边包含对项目组件
+和各种特性的开关(也就是宏定义)::
 
     $ head config.h.in
     /* config.h.in.  Generated from configure.ac by autoheader.  */
@@ -256,8 +262,8 @@ autoheader 能够根据 configure.ac 生成一个头文件的模板, 一般叫�
     /* Define to 1 if you have the <memory.h> header file. */
     #undef HAVE_MEMORY_H
 
-用户执行 configure 后, 会从 config.h.in 生成 config.h, 其中的宏定义根据用户系统
-的实际情况被替换为了真实数值::
+用户执行 configure 后, 会根据 config.h.in 生成 config.h, 其中的 #undef 根据用户
+系统的实际情况被替换为了真实数值::
 
     $ head config.h
     /* config.h.  Generated from config.h.in by configure.  */
@@ -271,8 +277,8 @@ autoheader 能够根据 configure.ac 生成一个头文件的模板, 一般叫�
 
     /* Define to 1 if you have the <memory.h> header file. */
 
-对于 autotools, 模板文件都以 .in 做为后缀, 比如 config.h.in, Makefile.in。模板
-文件由 configure 处理成最终文件.
+有一类文件我们称之为模板文件。它们以 .in 做为文件名后缀, 比如 config.h.in,
+Makefile.in。模板文件可能是手写的, 也可能是生成的; 由 configure 处理成最终文件.
 
 autoscan
 --------
@@ -282,9 +288,10 @@ Automake
 ========
 
 在 automake 出现之前, 人们必须手写 Makefile。但是项目稍微有点规模后, Makefile
-就很容易变得又长又臭, 很难维护。但是有这样一个事实, 大多数项目在结构上都是类似
-的。无论项目的代码文件里有什么, 都是在一个递归的代码树里面, 并且一般都要支持这
-些常见的 make 操作::
+就很容易变得又长又臭, 很难维护。
+
+大多数项目在结构上都是类似的。无论项目的代码文件里有什么, 都是组织在树状的目录
+里, 安装功能放在不同的子目录中。并且一般都要支持这些常见的 make 操作::
 
     $ make
     $ make clean
@@ -292,7 +299,8 @@ Automake
     $ make dist
     ....
 
-Automake 能够简化 Makefile 的维护, 自动生成可移植的 Makefile。
+所以 automake 出现了 (1994 年), 它能够自动生成 Makefile, 从而简化 Makefile 的维
+护。
 
 Automake 提供两个可执行程序:
 
@@ -302,31 +310,35 @@ Automake 提供两个可执行程序:
 automake
 --------
 
-automake 能够从抽象的高层描述 (Makefile.am) 生成具体的 makefile 模板 (Makefile.in)::
+automake 能够从抽象的高层描述 (Makefile.am) 生成具体的 makefile 模板
+(Makefile.in)::
 
     $ wc Makefile*
        60   266  1901 Makefile.am
       763  3087 25552 Makefile.in
       763  3207 28080 Makefile
 
-可以看到 Makefile.am 很短。而自动生成的 Makefile.in 和 Makefile 行数相同, 但是
-由于有宏扩展, Makefile 更大。
+可以看到 Makefile.am 很短。而自动生成的 Makefile.in 和 Makefile 行数相同。
 
-从语法上讲, Makefile.am 也是标准的 makefile。
+前面已经提到了, Makefile.in 会由 configure 转换为最终的 Makefile。
+
+从语法上讲, Makefile.am 也是标准的 makefile。所以如果 automake 生成的某条规则不
+满足要求, 可以直接把我们想要的结果写在 Makefile.am 里, 这样 automake 会采取我们
+指定的规则, 不会自动生成。
 
 aclocal
 -------
 
 automake 实际是对 autoconf 的一个扩展, 也就是提供一系列 m4 宏定义给用户使用。用
-户可以在 configure.ac 里调用这些宏。但是 autoconf 最初的设计并没有考虑到这么大
-程度的扩展。
+户可以在 configure.ac 里调用这些宏。但是, autoconf 最初的设计并没有考虑到这么大
+程度的扩展; 这带来了一个问题。
 
-autoconf 最初提供的扩展机制是通过一个叫 aclocal.m4 的文件。用户可以在里边添加自
-定义的宏, autoconf 在处理 configure.ac 的时候会自动读取这个文件里的宏定义。
+autoconf 最初提供的扩展机制是通过一个叫 aclocal.m4 的文件完成的。用户可以在里边
+添加自定义的宏, autoconf 在处理 configure.ac 的时候会自动读取这个文件里的宏定义
+。
 
-显然, 如果要使用 automake, 用户必须创建一个 aclocal.m4, 然后通过 m4_include 把
-automake 的宏都包含进来。这样 autoconf 就能识别出 configure.ac 里边的 automake
-宏了。
+显然, 如果要使用 automake, 用户必须创建 aclocal.m4, 然后通过 m4_include 把
+automake 的宏都包含进来。这样 autoconf 就能处理 automake 宏了。
 
 这个办法不算友好, 因为它把 M4 的一些概念暴露出来了, 而 autoconf 本身是要把 M4
 封装起来的, 不想让用户直接接触 M4。
@@ -363,10 +375,11 @@ Libtool 包提供了这些程序以及头文件和库:
 Automake 和 Libtool 都是对 autoconf 的扩展, 用几个简单的宏调用就能够使能
 automake 和 libtool。
 
-软件的编译过程
-~~~~~~~~~~~~~~
+从用户角度看
+~~~~~~~~~~~~
 
-以上的内容都是从开发者的角度看的。下面分析一下在用户系统上发生的事情。
+以上的内容都是从开发者的角度看的。下面分析一下在用户系统上发生的事情, 也就是软
+件的编译过程。
 
 执行 ./configure
 ================
@@ -400,11 +413,21 @@ Makefile 已经由 configure 生成, 用户只需要执行一个简单的 make �
 
     make 过程数据流图
 
+
+autotools 实例
+~~~~~~~~~~~~~~
+
+下面以 xwininfo 为例, 具体的讲解 autotools 的使用。
+
 编写 configure.ac
-~~~~~~~~~~~~~~~~~
+=================
+
+使用 autotools 管理工程的第一步是编写 configure.ac。
+
+我们先看一个最短的 confgure.ac 是什么样子的。
 
 最短的 configure.ac
-===================
+-------------------
 
 ::
 
@@ -412,33 +435,34 @@ Makefile 已经由 configure 生成, 用户只需要执行一个简单的 make �
     AC_OUTPUT
 
 编写 configure.ac 的语言是 M4 。M4 是一种宏处理语言 (macro processor), 本质上就
-是对宏定义的文本递归扩展。上例中是两个 M4 宏调用, 被 m4 扩展后, 就生成了最终的
+是对宏定义的文本递归扩展。上例中是两个 M4 宏调用, 被扩展后, 就生成了最终的
 configure 脚本。
 
 M4 宏与 C 语言的预处理宏有很多相似之处。这很容易理解, 因为它们都是进行简单的文
 本替换, 而且作者都是 Brian Kernighan 和 Dennis Ritchie。
 
-这两个宏是由 autoconf 提供的 (/usr/share/autoconf/autoconf/general.m4)。
+这两个宏是由 autoconf 定义的 (/usr/share/autoconf/autoconf/general.m4)。宏的用
+法与 C 语言类似。
 
-参数可以用括号 () 传递。没有参数可以不写括号。
+- 参数可以用括号 () 传递。没有参数可以不写括号。
 
-在使用 autoconf 时, 必要的时候要用方括号 [] 把参数括起来。
+- 在使用 autoconf 时, 必要的时候要用方括号 [] 把参数括起来。
 
-在一个 configure.ac 脚本中, 至少要调用两个宏:
+在一个 configure.ac 脚本中, 有两个宏是必须的:
 
-AC_INIT(package, version, [bug-report], [tarname], [url])
+- AC_INIT(package, version, [bug-report], [tarname], [url])
     初始化 autoconf 系统。
 
-AC_OUTPUT
+- AC_OUTPUT
     生成并调用 config.status。每个 configure.ac 都应该在最后调用此宏。在
     AC_OUTPUT 之后执行的动作不会对 configure 过程产生作用。有的项目会在最后写一
     条 echo 语句, 打印一些 configure 信息。
 
 生成 configure
-~~~~~~~~~~~~~~
+--------------
 
 调用 autotools 工具链的推荐办法是 autoreconf。有的工程为了方便, 会有一个简单的
-autogen.sh 脚本::
+autogen.sh 脚本。这是 xwininfo 的 autogen.sh::
 
     #! /bin/sh
 
@@ -453,15 +477,23 @@ autogen.sh 脚本::
 
     $srcdir/configure --enable-maintainer-mode "$@"
 
-可以看到 xwininfo 的 autogen.sh 只是对 autoreconf 的封装, 最后再直接掉用刚刚生
-成的 configure。
+可以看到 xwininfo 的 autogen.sh 只是对 autoreconf 的封装, 最后直接调用刚刚生成
+的 configure。
+
+一个小技巧: 有些 GNOME 模块会在 autogen.sh 里调用 gnome-autogen.sh。这样就能够
+利用 NOCONFIGURE 使得 gnome-autogen.sh 不直接执行 configure::
+
+    NOCONFIGURE=yes ./autogen.sh
 
 调用 config.status
-~~~~~~~~~~~~~~~~~~
+------------------
 
-前边提到过真正的把 .in 模板文件转换为普通文件的是 config.status。实际上用户也可
-以直接调用 ./config.status, 就能够重新转换模板文件。这也是 autoconf 的设计目的
-之一。但是 config.status 的更大作用是给 make 使用: ::
+前边提到过真正负责把 .in 模板文件转换为普通文件的是 config.status。实际上我们也
+可以直接调用 ./config.status。这也是 autoconf 的设计目的之一, 把检查系统和转换
+模板文件分成两步, 分别由两个脚本完成, 这样就可以单独地执行模板文件的转换, 不需
+要费时再次检查系统。
+
+但是 config.status 的更大作用是给 make 使用: ::
 
     Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
             @case '$?' in \
@@ -474,7 +506,7 @@ autogen.sh 脚本::
 当 Makefile.in 模板文件被改变后, 可以自动更新 Makefile。
 
 xwininfo 的 configure.ac
-========================
+------------------------
 
 下面逐行分析 xwininfo 的 configure.ac。
 
@@ -496,7 +528,7 @@ dnl 的意思是 discard to next line。相当于注释, 但是实际上这些�
     AC_INIT([xwininfo], [1.1.1],
             [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg], [xwininfo])
 
-AC_PREREQ 指定可适用的 autoconf 最低版本。AC_INIT 初始化 Autoconf。
+AC_PREREQ 指定 autoconf 最低版本。AC_INIT 初始化 Autoconf。
 
 ::
 
@@ -519,7 +551,14 @@ XORG_MACROS_VERSION 不存在, 就调用 m4_fatal 打印错误信息后退出。
 
 XORG_MACROS_VERSION 由 util-macros 提供, 检查 util-macros 的版本是否大于 1.8。
 
-::
+有时候我们会遇到未识别的宏的问题。比如, 如果 util-macros 没有安装, 那么当开发者
+执行 autoconf 的时候, autoconf 找不到 XORG_MACROS_VERSION 的定义, 最后生成的
+configure 脚本就会有一个未被扩展的 XORG_MACROS_VERSION 调用。这时候再执行
+./configure, 就会出现::
+
+    XORG_MACROS_VERSION: command not found
+
+继续看 configure.ac。 ::
 
     AM_CONFIG_HEADER(config.h)
 
@@ -594,15 +633,15 @@ XXX
 调用 AC_OUTPUT。
 
 自动生成 Makefile
-~~~~~~~~~~~~~~~~~
+=================
 
-前面提到过 automake 只是对 autoconf 的扩展, 所以要使能 automake, 只需要在
-configure.ac 里添加一条 AM_INIT_AUTOMAKE: ::
+前面提到过 automake 在形式上只是对 autoconf 的扩展, 所以要使能 automake, 只需要
+在 configure.ac 里添加一条 AM_INIT_AUTOMAKE: ::
 
     AM_INIT_AUTOMAKE([foreign dist-bzip2])
 
 xwininfo 的 Makefile.am
-=======================
+-----------------------
 
 ::
 
@@ -651,4 +690,24 @@ xwininfo 的 Makefile.am
             $(AM_V_GEN)$(SED) $(MAN_SUBSTS) < $< > $@
 
 用 Libtool 构建共享库
-~~~~~~~~~~~~~~~~~~~~~
+=====================
+
+常见问题 debug
+~~~~~~~~~~~~~~
+
+- automake 生成的规则不符合要求
+
+参考书籍
+~~~~~~~~
+
+很长一段时间内, 市面上只有一本关于 Autotools 的书, 也就是传说中的“山羊书”,
+(The Goat Book), `GNU Autoconf, Automake, and Libtool`_ 。整本书都可以在网
+上看到, 但是这本书写得不算易懂, 而且出版于 2000 年, 许多内容已经过时了。
+
+.. _GNU Autoconf, Automake, and Libtool: http://sources.redhat.com/autobook/
+
+2010 年 Oreilly 出版了 `Autotools - A Practioner's Guide to GNU Autoconf,
+Automake, and Libtool`_ 。这本书的写作风格更加易懂, 也更能反映 autotools 最新的
+发展。本文就是基于这本书写的。
+
+.. _Autotools - A Practioner's Guide to GNU Autoconf, Automake, and Libtool: http://oreilly.com/catalog/9781593272067
