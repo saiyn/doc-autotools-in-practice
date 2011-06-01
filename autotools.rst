@@ -174,7 +174,7 @@ GNU build system (以下称作 autotools) 提供的工具包括:
 上图解释了一个软件从 git 仓库到安装到用户系统上的过程。整个过程分成两个部分, 分
 别由开发者和用户主导。
 
-开发者使用 autotools (autoconf 和 automake) 生成必要的文件, 然后讲软件源码包分
+开发者使用 autotools (autoconf 和 automake) 生成必要的文件, 然后将软件源码包分
 发给用户。用户拿到源码后, 通过几个标准的命令来编译这个软件:
 
 configure
@@ -210,6 +210,9 @@ Autoconf 提供的可执行程序包括：
 
 简单地说, 开发者编写好 configure.ac 后, 调用 autoconf 以及其他的程序, 生成
 configure。当然, 具体的操作更复杂一点, 由多个工具相互协作完成。
+
+上图中 aclocal.m4 (左下角) 的颜色很模糊, 因为它的角色确实不太确定。有时候
+aclocal.m4 是开发者手写的, 有时候是生成的。下面会讲到这点。
 
 autoconf
 --------
@@ -346,6 +349,8 @@ automake 的宏都包含进来。这样 autoconf 就能处理 automake 宏了。
 所以开发者设计了 aclocal 来解决这个问题。它能够自动生成 aclocal.m4 文件, 供
 autoconf 使用。
 
+这也就是为什么 aclocal.m4 在“autoconf 和 autoheader 的数据流图”中的颜色很模糊。
+
 .. figure:: images/aclocal_dataflow.png
 
     aclocal 的数据流图
@@ -356,17 +361,17 @@ Libtool
 Libtool 的目的是简化共享库的开发。尽管各种 UNIX 系统是基本相似的, 但是它们在共
 享库的处理上有着各种各样的差别。libtool 可以帮开发者避开这些陷阱。比如:
 
-- 库的命名。libname.so, libname.a, libname.sl。有的系统什么不支持共享库。
+- 库的命名。libname.so, libname.a, libname.sl。有的系统甚至不支持共享库。
 - 库的动态加载。有的系统提供 libdl.so (dlopen), 有的系统提供其他的机制, 有的系
   统不支持动态加载。
 
 Libtool 包提供了这些程序以及头文件和库:
 
-- libtool 一个 shell 脚本
-- libtoolize 能够为工程生成特定的 libtool 脚本。这个脚本会在用户系统上, 由 make
+- libtool, 一个 shell 脚本
+- libtoolize, 能够为工程生成特定的 libtool 脚本。这个脚本会在用户系统上, 由 make
   执行。
-- libdl 一个通用的共享库加载接口。
-- ltdl.h 头文件
+- libdl, 一个通用的共享库加载接口。
+- ltdl.h, 头文件
 
 .. figure:: images/automake_libtool_dataflow.png
 
@@ -446,7 +451,8 @@ M4 宏与 C 语言的预处理宏有很多相似之处。这很容易理解, 因
 
 - 参数可以用括号 () 传递。没有参数可以不写括号。
 
-- 在使用 autoconf 时, 必要的时候要用方括号 [] 把参数括起来。
+- 在使用 autoconf 时, 必要的时候要用方括号 [] (而不是常见的双引号或者圆括号等等
+  ) 把参数括起来。
 
 在一个 configure.ac 脚本中, 有两个宏是必须的:
 
@@ -457,6 +463,19 @@ M4 宏与 C 语言的预处理宏有很多相似之处。这很容易理解, 因
     生成并调用 config.status。每个 configure.ac 都应该在最后调用此宏。在
     AC_OUTPUT 之后执行的动作不会对 configure 过程产生作用。有的项目会在最后写一
     条 echo 语句, 打印一些 configure 信息。
+
+完整的 configure.ac 的内容一般是这样的: ::
+
+    AC_INIT
+     测试程序
+     测试函数库
+     测试头文件
+     测试类型定义
+     测试结构
+     测试编译器特性
+     测试库函数
+     测试系统调用
+    AC_OUTPUT
 
 生成 configure
 --------------
@@ -480,10 +499,13 @@ autogen.sh 脚本。这是 xwininfo 的 autogen.sh::
 可以看到 xwininfo 的 autogen.sh 只是对 autoreconf 的封装, 最后直接调用刚刚生成
 的 configure。
 
-一个小技巧: 有些 GNOME 模块会在 autogen.sh 里调用 gnome-autogen.sh。这样就能够
-利用 NOCONFIGURE 使得 gnome-autogen.sh 不直接执行 configure::
+一个小技巧: 有些 GNOME 模块会在 autogen.sh 里调用 gnome-autogen.sh。
+gnome-autogen.sh 支持一个 NOCONFIGURE 环境变量, 如果它被设为 yes, 就不会直接执
+行 configure::
 
     NOCONFIGURE=yes ./autogen.sh
+
+只生成 configure (及其它文件) 而不执行。
 
 调用 config.status
 ------------------
@@ -510,6 +532,9 @@ xwininfo 的 configure.ac
 
 下面逐行分析 xwininfo 的 configure.ac。
 
+dnl
+...
+
 ::
 
     dnl  Copyright 2005 Red Hat, Inc.
@@ -522,13 +547,19 @@ xwininfo 的 configure.ac
 dnl 的意思是 discard to next line。相当于注释, 但是实际上这些行都被丢弃了, 不会
 出现在最终的扩展结果(也就是 configure) 中。
 
+初始化
+......
+
 ::
 
     AC_PREREQ([2.60])
     AC_INIT([xwininfo], [1.1.1],
             [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg], [xwininfo])
 
-AC_PREREQ 指定 autoconf 最低版本。AC_INIT 初始化 Autoconf。
+指定 autoconf 最低版本。初始化 Autoconf。
+
+初始化 automake
+...............
 
 ::
 
@@ -537,14 +568,15 @@ AC_PREREQ 指定 autoconf 最低版本。AC_INIT 初始化 Autoconf。
 
 初始化 Automake 。详细内容会在下一小节讲到。
 
+检查外部依赖
+............
+
 ::
 
     # Require X.Org macros 1.8 or later for MAN_SUBSTS set by XORG_MANPAGE_SECTIONS
     m4_ifndef([XORG_MACROS_VERSION],
               [m4_fatal([must install xorg-macros 1.8 or later before running autoconf/autogen])])
     XORG_MACROS_VERSION(1.8)
-
-检查外部依赖。
 
 m4_ifndef 是 M4 的一个内置宏, 作用跟 CPP 的 #ifndef 类似。如果
 XORG_MACROS_VERSION 不存在, 就调用 m4_fatal 打印错误信息后退出。
@@ -558,17 +590,20 @@ configure 脚本就会有一个未被扩展的 XORG_MACROS_VERSION 调用。这�
 
     XORG_MACROS_VERSION: command not found
 
-继续看 configure.ac。 ::
-
-    AM_CONFIG_HEADER(config.h)
-
-XXX
+config.h 头文件
+................
 
 ::
 
-    AC_USE_SYSTEM_EXTENSIONS
+    AM_CONFIG_HEADER(config.h)
 
-    XORG_DEFAULT_OPTIONS
+指定一个头文件 config.h。AC_OUTPUT 会创建 config.h，把一些 CPP #define 宏放入这
+个文件，并且把模板文件里的 @DEFS@ 替换为 DEFS 实际值。
+
+更多检查
+........
+
+::
 
     AC_CHECK_FUNCS([strlcat])
 
@@ -581,7 +616,24 @@ XXX
     AC_SEARCH_LIBS([iconv], [iconv], [AC_DEFINE([HAVE_ICONV], 1,
             [Define to 1 if you have the iconv() function])])
 
-XXX
+对系统进行各种检查。configure 进行检查的方式是，生成简单的源代码文件，根据是否
+编译成功来判断系统能不能支持某种特性。以上的片段检查 strlcat 和 strnlen 函数，
+并且查找 iconv 库。
+
+如果找到了 strnlen，configure 就会定义一个 HAVE_STRNLEN 宏，值设为1。config.h 里就会有: ::
+
+    #define HAVE_STRNLEN 1
+
+否则就是: ::
+
+    /* #undef HAVE_STRNLEN */
+
+AC_SEARCH_LIBS 原型: ::
+
+    AC_CHECK_LIB (library, function, [action-if-found], [action-if-not-found], [other-libraries])
+
+自定义选项
+..........
 
 ::
 
@@ -599,20 +651,21 @@ XXX
             xcb_icccm_pc="xcb-icccm"
     fi
 
-添加一个自定义 configure 选项 --with-xcb-icccm=[yes|no]。如果使能了此特性, 就
-把 USE_XCB_ICCCM 置为 1。这个定义会出现在 config.h.in 和 config.h 中: ::
-
-    ---- config.h.in ----
-
-    /* Define to 1 to call xcb-icccm library functions instead of local
-       replacements */
-    #undef USE_XCB_ICCCM
+这一段代码为 configure 脚本添加了一个自定义选项, --with-xcb-icccm=[yes|no]。如
+果使能了此特性, 就把 USE_XCB_ICCCM 置为 1。同样，这个定义会出现在 config.h 中: ::
 
     ---- config.h ----
 
     /* Define to 1 to call xcb-icccm library functions instead of local
        replacements */
     /* #undef USE_XCB_ICCCM */
+
+AC_ARG_WITH 原型: ::
+
+    AC_ARG_WITH (package, help-string, [action-if-given], [action-if-not-given])
+
+pkg-config
+..........
 
 ::
 
@@ -624,13 +677,73 @@ XXX
     PKG_CHECK_MODULES(XLIB, x11 [xproto >= 7.0.17])
     XWININFO_CFLAGS="${XWININFO_CFLAGS} ${XLIB_CFLAGS}"
 
-用 pkg-config 检查依赖。
+这段代码使用了 pkgconfig 检查依赖。PKG_CHECK_MODULES 原型: ::
+
+    PKG_CHECK_MODULES(VARIABLE-PREFIX, modules [,action-if-found, [action-if-not-found]])
+
+pkgconfig 也提供了一个命令 pkg-config: ::
+
+    $ pkg-config --print-errors 'xcb >= 1.6'
+    $ $ echo $?
+    0
+
+如果没有安装 xcb: ::
+
+    $ pkg-config --print-errors 'xcb >= 1.6'
+    Package xcb was not found in the pkg-config search path.
+    Perhaps you should add the directory containing `xcb.pc'
+    to the PKG_CONFIG_PATH environment variable
+    No package 'xcb' found
+
+PKG_CHECK_MODULES 在检查完模块后，还会定义两个宏，MODULES_LIBS 和
+MODULES_CFLAGS。上文最后一行就使用了前一行定义的 XLIB_CFLAGS。
+
+LIBS 和 CFLAGS 也可以用 pkg-config 命令获得: ::
+
+    $ pkg-config --libs 'xcb >= 1.6'
+    -lxcb
+    $ pkg-config --cflags 'xcb >= 1.6'
+
+    # xcb 没有提供 cflags 选项。
+
+    # 以 glib 为例:
+    $ pkg-config --cflags glib-2.0
+    -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include
+
+pkg-config 本质上是查看 .pc 文件的内容。各发行版一般都把 .pc 放在
+/usr/lib{64}/pkgconfig/ 下。比如: ::
+
+    $ cat /usr/lib64/pkgconfig/xcb.pc
+    prefix=/usr
+    exec_prefix=/usr
+    libdir=/usr/lib64
+    includedir=/usr/include
+    xcbproto_version=1.6
+
+    Name: XCB
+    Description: X-protocol C Binding
+    Version: 1.7
+    Requires.private: xau >= 0.99.2
+    Libs: -L${libdir} -lxcb
+    Libs.private:
+    Cflags: -I${includedir}
+
+
+输出
+....
 
 ::
 
     AC_OUTPUT([Makefile])
 
-调用 AC_OUTPUT。
+调用 AC_OUTPUT，生成并执行 config.status。
+
+这是过时的调用方式。现在的 AC_OUTPUT 是不需要参数的。所以上句等同于: ::
+
+    AC_CONFIG_FILES([Makefile])
+    AC_OUTPUT
+
+AC_CONFIG_FILES (file..., [cmds], [init-cmds]) 能够指定从 file.in 生成 file。
 
 自动生成 Makefile
 =================
@@ -689,13 +802,19 @@ xwininfo 的 Makefile.am
     .man.$(APP_MAN_SUFFIX):
             $(AM_V_GEN)$(SED) $(MAN_SUBSTS) < $< > $@
 
+TODO
+
 用 Libtool 构建共享库
 =====================
+
+TODO
 
 常见问题 debug
 ~~~~~~~~~~~~~~
 
 - automake 生成的规则不符合要求
+
+TODO
 
 参考书籍
 ~~~~~~~~
