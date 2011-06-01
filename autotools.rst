@@ -628,9 +628,17 @@ config.h 头文件
 
     /* #undef HAVE_STRNLEN */
 
+AC_CHECK_FUNCS 原型: ::
+
+    AC_CHECK_FUNCS (function..., [action-if-found], [action-if-not-found])
+
+检查结果缓存在 ac_cv_func_*function* 变量里。
+
 AC_SEARCH_LIBS 原型: ::
 
     AC_CHECK_LIB (library, function, [action-if-found], [action-if-not-found], [other-libraries])
+
+检查结果缓存在 ac_cv_lib_*library*_*function* 变量里。
 
 自定义选项
 ..........
@@ -748,10 +756,21 @@ AC_CONFIG_FILES (file..., [cmds], [init-cmds]) 能够指定从 file.in 生成 fi
 自动生成 Makefile
 =================
 
-前面提到过 automake 在形式上只是对 autoconf 的扩展, 所以要使能 automake, 只需要
-在 configure.ac 里添加一条 AM_INIT_AUTOMAKE: ::
+使能 automake
+-------------
+前面提到过 automake 在形式上只是对 autoconf 的扩展, 所以要使能 automake, 需要修
+改 configure.ac。其实只要添加一行 AM_INIT_AUTOMAKE: ::
 
     AM_INIT_AUTOMAKE([foreign dist-bzip2])
+
+Makefile.am 分析
+----------------
+
+production_list
+...............
+
+production_source
+.................
 
 xwininfo 的 Makefile.am
 -----------------------
