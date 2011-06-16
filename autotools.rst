@@ -736,6 +736,8 @@ pkg-config 本质上是查看 .pc 文件的内容。各发行版一般都把 .pc
     Libs.private:
     Cflags: -I${includedir}
 
+pkg-config 除了检查默认的 /usr/libdir/pkgconfig/，还会检查 PKG_CONFIG_PATH 所指
+定的位置。
 
 输出
 ....
@@ -758,19 +760,128 @@ AC_CONFIG_FILES (file..., [cmds], [init-cmds]) 能够指定从 file.in 生成 fi
 
 使能 automake
 -------------
-前面提到过 automake 在形式上只是对 autoconf 的扩展, 所以要使能 automake, 需要修
-改 configure.ac。其实只要添加一行 AM_INIT_AUTOMAKE: ::
+前面提到过 automake 在形式上只是对 autoconf 的扩展, 所以要使能 automake, 要在
+configure.ac 里修改。其实只要添加一行 AM_INIT_AUTOMAKE: ::
 
     AM_INIT_AUTOMAKE([foreign dist-bzip2])
 
 Makefile.am 分析
 ----------------
 
-production_list
-...............
+Makefile.am 里通常是一些简单的赋值语句, 比如: ::
 
-production_source
-.................
+    SUBDIRS = src
+
+    bin_PROGRAMS = jupiter
+    jupiter_SOURCES = main.c
+
+Makefile.am 在形式上是规范的 makefile, 所以上边这个 Makefile.am 仅仅是定义了三
+个变量。但是对于 automake 来说，这些变量是有特殊含义的。通过 automake 的处理，
+这三行普通的赋值就能变成一个非常完备的 makefile。
+
+上例中首先定义了一个 SUBDIRS 变量。SUBDIRS 的值通常是项目中的几个子目录，比如上
+例中的 src。automake 会按照 SUBDIRS 指定的顺序递归地处理这些目录。
+
+上例然后定义了一个 bin_PROGRAMS 和一个 jupiter_SOURCES。它们分别称作 product
+list variable (PLV) 和 product source variable (PSV)。
+
+顾名思义，PLV 是一组 product 的列表，而 PSV 定义了每个 product 的“原料”。
+
+product list variable
+.....................
+
+PLV 的形式是: ::
+
+    [modifier-list]prefix_PRIMARY = product1 product2 ... productN
+
+先看赋值运算符左边。modifier-list 不是必需的，后面会提到有哪些 modifier。所以一
+个 PLV 的名字一般就是 prefix_PRIMARY。prefix 表示安装位置，PRIMARY 表示 product
+的类型。
+
+赋值运算符的右边是 PLV 的值，是以空白字符分隔的 product 的名字。
+
+以 bin_PROGRAMS 为例，bin 表示这些 product 要安装到 bindir，(通常)也就是
+/usr/bin；PROGRAMS 表示这些 product 都是二进制程序，automake 会按照类型生成合适
+的编译命令。这个 PLV 的值只包含一个 product, jupiter。
+
+prefix
+''''''
+
+有一些预定义的 prefix，它们都对应于 GCS (GNU Coding Standards) 中的定义，比如
+bindir，libdir， sysconfdir。去掉结尾的 ‘dir’，就是能在 Makefile.am 中使用的
+prefix (比如 "bin", "lib", "sysconf")。
+
+还有一些 prefix 是跟安装位置无关的，比如 noinst，表示不需要安装；check，表示只
+有在 make check 的时候才需要生成。
+
+还可以自定义 prefix: ::
+
+    xmldir = $(datadir)/xml
+    xml_DATA = file1.xml file2.xml file3.xml ...
+
+EXTRA
+'''''
+
+这里单独提一下 EXTRA 这个 prefix。EXTRA 也是跟安装位置无关的。它用于列举根据
+configure 结果可能编译，也可能不编译的对象。
+
+那为什么不能在 Makefile.am 里省略这些可选程序？
+
+Automake 的作用是生成 makefile 规则，所以 automake 必须知道所有对象的存在。
+Automake 不关心某个规则是否会被执行。
+
+例子：::
+
+     EXTRA_PROGRAMS = mt rmt
+     sbin_PROGRAMS = $(MORE_PROGRAMS)
+
+MORE_PROGRAMS 由 configure 定义，它只能包含 mt 和 rmt 中的一个或多个。如果
+MORE_PROGRAMS 包含了其他的值，那显然会出错，因为 makefile 不会有相应的规则。
+
+PRIMARY
+'''''''
+
+PLV 名字的最后一部分是 PRIMARY。PRIMARY 可以认为是 product 的种类。比如
+PROGRAMS, LIBRARIES, PYTHONG, JAVA, SCRIPTS, DATA, DEADERS, MANS, TEXINFOS。这
+都是 automake 预定义的 PRIMARY。
+
+也可以自定义 PRIMARY。这里不涉及这个话题。
+
+每个 PRIMARY 都对应自己的编译规则。比如 LIBRARIES, automake 会生成规则，使用合
+适的编译器和链接器，生成合适的库文件。
+
+product source variable
+.......................
+
+PLV 列出了开发者需要的 product。而 product 与源文件的关系由相应的 product
+source variable 指定。
+
+PSV 的形式是: ::
+
+    [modifier-list]product_SOURCES = file1 file2 ... fileN
+
+比如 xwininfo 的 Makefile.am 里有: ::
+
+    bin_PROGRAMS = xwininfo
+
+    xwininfo_SOURCES =	\
+            clientwin.c \
+            clientwin.h \
+            dsimple.c \
+            dsimple.h \
+            xwininfo.c
+
+PLV and PSV modifiers
+.....................
+
+PLV 和 PSV 的名字可以含有一个 modifier-list。modifier 会改变随后的
+prefix_PRIMARY 的行为。
+
+这里只简单介绍 dist 和nodist 这两个 modifier。它们表示一个文件是否应该被分发 (
+也就是当 make dist 的时候是否应该放入 tar 包)。比如: ::
+
+    dist_myprog_SOURCES = file1.c file2.c
+    nodist_myprog_SOURCES = file3.c file4.c
 
 xwininfo 的 Makefile.am
 -----------------------
@@ -821,7 +932,8 @@ xwininfo 的 Makefile.am
     .man.$(APP_MAN_SUFFIX):
             $(AM_V_GEN)$(SED) $(MAN_SUBSTS) < $< > $@
 
-TODO
+前面提到过 xwininfo 最终安装了两个文件。可以看到 Makefile.am 分别有每个文件的相
+应规则。
 
 用 Libtool 构建共享库
 =====================
@@ -831,9 +943,23 @@ TODO
 常见问题 debug
 ~~~~~~~~~~~~~~
 
+- configure 出错
+
+检查 config.log。
+
+- Perhaps you should add the directory containing 'xcb.pc'
+
+检查 pc 文件是否 ok。
+
 - automake 生成的规则不符合要求
 
-TODO
+在 Makefile.in (Makefile.am) 里直接定义想要的规则。(未找到例子)
+
+- 需要 enable/disable 某个特性，但是没有提供 --enable/disable 选项
+
+重载 ac_cv_### 值。
+
+ac_cv_###=### configure ....
 
 参考书籍
 ~~~~~~~~
