@@ -1,8 +1,11 @@
 ====================
  Autotools 实例分析
 ====================
+:Author: 张森
+:Email: sen.zhang@windriver.com
 
 .. contents:: 目录
+    :depth: 2
 
 简介
 ~~~~
@@ -842,7 +845,7 @@ PRIMARY
 '''''''
 
 PLV 名字的最后一部分是 PRIMARY。PRIMARY 可以认为是 product 的种类。比如
-PROGRAMS, LIBRARIES, PYTHONG, JAVA, SCRIPTS, DATA, DEADERS, MANS, TEXINFOS。这
+PROGRAMS, LIBRARIES, PYTHON, JAVA, SCRIPTS, DATA, DEADERS, MANS, TEXINFOS。这
 都是 automake 预定义的 PRIMARY。
 
 也可以自定义 PRIMARY。这里不涉及这个话题。
